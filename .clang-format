@@ -1,0 +1,9 @@
+BasedOnStyle: GNU
+IndentWidth: 4
+TabWidth: 4
+BreakBeforeBraces: Allman
+IndentCaseLabels: true
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+ColumnLimit: 80
+PointerAlignment: Right
