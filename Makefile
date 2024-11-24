@@ -18,7 +18,7 @@ SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 DEPENDS = $(OBJS:.o=.d)
 
-TARGET = $(BIN_DIR)/prog
+TARGET = $(BIN_DIR)/ft_traceroute
 
 DEP_FILES = $(DEPENDS)
 
