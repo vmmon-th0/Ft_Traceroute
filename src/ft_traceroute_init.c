@@ -1,38 +1,46 @@
 #include "ft_traceroute.h"
 
 void
-traceroute_socket_send_init()
+sock_send_init ()
 {
-    g_traceroute.sock_info.send_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    g_traceroute.sock_info.send_fd = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (g_traceroute.sock_info.send_fd < 0)
     {
-        perror("socket");
-        exit(EXIT_FAILURE);
+        perror ("socket");
+        exit (EXIT_FAILURE);
     }
 
-    // fullfil global info
+    g_traceroute.sock_info.addr_4.sin_family = AF_INET;
+    g_traceroute.sock_info.addr_4.sin_addr.s_addr = INADDR_ANY;
+    g_traceroute.sock_info.addr_4.sin_port = htons(0);
 }
 
 void
-traceroute_socket_recv_init()
+sock_recv_init ()
 {
-    #define TIMEOUT_SEC 1
-
-    g_traceroute.sock_info.recv_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    g_traceroute.sock_info.recv_fd = socket (AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (g_traceroute.sock_info.send_fd < 0)
     {
-        perror("socket");
-        exit(EXIT_FAILURE);
+        perror ("socket");
+        exit (EXIT_FAILURE);
     }
 
     struct timeval timeout;
     timeout.tv_sec = TIMEOUT_SEC;
     timeout.tv_usec = 0;
 
-    if (setsockopt(g_traceroute.sock_info.recv_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
+    if (setsockopt (g_traceroute.sock_info.recv_fd, SOL_SOCKET, SO_RCVTIMEO,
+                    &timeout, sizeof (timeout))
+        < 0)
+    {
+        perror ("setsockopt");
+        exit (EXIT_FAILURE);
     }
+}
 
-    // fullfil global info
+void
+traceroute_init_g_info()
+{
+    bzero(&g_traceroute, sizeof(struct s_traceroute));
+    g_traceroute.info.pid = getpid();
 }

@@ -1,21 +1,30 @@
 #ifndef FT_TRACEROUTE
 #define FT_TRACEROUTE
 
-#include <netdb.h>
-#include <errno.h>
-#include <stdio.h>
-#include <getopt.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include <arpa/inet.h>
+#include <errno.h>
+#include <getopt.h>
+#include <netdb.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <netinet/udp.h>
+#include <netinet/ip.h>
+#include <sys/socket.h>
 
 #ifdef DEBUG
-#define TRACEROUTE_DEBUG(fmt, ...)                                                   \
+#define TRACEROUTE_DEBUG(fmt, ...)                                             \
     fprintf (stderr, "DEBUG: %s:%d:%s(): " fmt, __FILE__, __LINE__, __func__,  \
              ##__VA_ARGS__)
 #else
 #define TRACEROUTE_DEBUG(fmt, ...)
 #endif
+
+#define TIMEOUT_SEC 1
+
+#define PACKET_SIZE 64
+#define UDP_PAYLOAD_SIZE PACKET_SIZE - sizeof (struct iphdr) - sizeof (struct udphdr)
 
 struct s_options
 {
@@ -36,7 +45,18 @@ struct s_sock_info
 
 struct s_info
 {
-    bool exit_code;
+    pid_t pid;
+    uint16_t nsent;
+    uint16_t srcp, dstp;
+    uint16_t ttl, max_ttl;
+    uint16_t probe, nprobes;
+    _Bool exit_code;
+    _Bool ready_send;
+};
+
+struct s_udp_pkt {
+	struct udphdr   udphdr;
+	char data[UDP_PAYLOAD_SIZE];
 };
 
 struct s_traceroute

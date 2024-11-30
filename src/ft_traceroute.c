@@ -34,6 +34,20 @@ is_running_as_root ()
     return geteuid () == 0;
 }
 
+static void
+handle_sig (int sig)
+{
+    if (sig == SIGALRM)
+    {
+        g_traceroute.info.ready_send = true;
+    }
+    else if (sig == SIGINT)
+    {
+        release_resources ();
+        exit (EXIT_SUCCESS);
+    }
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -48,7 +62,9 @@ main (int argc, char *argv[])
         exit (EXIT_FAILURE);
     }
 
-    // traceroute_init_g_info();
+    signal (SIGINT, handle_sig);
+    signal (SIGALRM, handle_sig);
+    traceroute_init_g_info();
 
     while ((opt = getopt_long (argc, argv, short_options, long_options,
                                &long_index))

@@ -1,10 +1,11 @@
 #include "ft_traceroute.h"
 
 /**
- * @brief This function resolves a hostname that will be the traceroute destination
- * target, we are dealing with IPV4, The getaddrinfo() function allocates
- * and initializes a linked list of addrinfo structures. There are several
- * reasons why the linked list may have more than one addrinfo structure :
+ * @brief This function resolves a hostname that will be the traceroute
+ * destination target, we are dealing with IPV4, The getaddrinfo() function
+ * allocates and initializes a linked list of addrinfo structures. There are
+ * several reasons why the linked list may have more than one addrinfo structure
+ * :
  * - Multihoming (A network host can be reached via multiple IP addresses)
  * - Multiple protocols (AF_INET (IPv4) and AF_INET6 (IPv6))
  * - Various socket types (The same service can be reached via different socket
@@ -26,7 +27,7 @@ resolve_hostname (const char *hostname)
     if ((status = getaddrinfo (hostname, NULL, &hints, &res)) != 0)
     {
         fprintf (stderr, "getaddrinfo: %s\n", gai_strerror (status));
-        exit(EXIT_FAILURE);
+        exit (EXIT_FAILURE);
     }
 
     for (p = res; p != NULL; p = p->ai_next)
@@ -37,32 +38,35 @@ resolve_hostname (const char *hostname)
             void *addr = &(ipv4->sin_addr);
 
             if (inet_ntop (p->ai_family, addr, g_traceroute.sock_info.ip_addr,
-                           sizeof (g_traceroute.sock_info.ip_addr)) == NULL)
+                           sizeof (g_traceroute.sock_info.ip_addr))
+                == NULL)
             {
                 perror ("inet_ntop IPv4");
                 continue;
             }
             memcpy (&g_traceroute.sock_info.ai, p, sizeof (struct addrinfo));
-            // TRACEROUTE_DEBUG ("IPv4 addr for %s: %s\n", hostname, g_traceroute.sock_info.ip_addr);
+            // TRACEROUTE_DEBUG ("IPv4 addr for %s: %s\n", hostname,
+            // g_traceroute.sock_info.ip_addr);
             break;
         }
     }
 
     if (res->ai_canonname)
     {
-        // TRACEROUTE_DEBUG ("Canonname for IPv4 addr %s: %s\n", g_traceroute.sock_info.ip_addr, res->ai_canonname);
+        // TRACEROUTE_DEBUG ("Canonname for IPv4 addr %s: %s\n",
+        // g_traceroute.sock_info.ip_addr, res->ai_canonname);
         memcpy (g_traceroute.sock_info.ai_canonname, res->ai_canonname,
                 sizeof (g_traceroute.sock_info.ai_canonname));
-        g_traceroute.sock_info.ai.ai_canonname = g_traceroute.sock_info.ai_canonname;
+        g_traceroute.sock_info.ai.ai_canonname
+            = g_traceroute.sock_info.ai_canonname;
     }
 
     freeaddrinfo (res);
 
     if (p == NULL)
     {
-        fprintf (stderr, "No valid IPv4 address found for %s\n",
-                 hostname);
-        exit(EXIT_FAILURE);
+        fprintf (stderr, "No valid IPv4 address found for %s\n", hostname);
+        exit (EXIT_FAILURE);
     }
 
     g_traceroute.sock_info.hostname = hostname;
@@ -71,8 +75,17 @@ resolve_hostname (const char *hostname)
 void
 traceroute_coord (const char *hostname)
 {
-    resolve_hostname(hostname);
+    resolve_hostname (hostname);
     traceroute_socket_init ();
 
     // Implement loop for tracerouting
+
+    for (;;)
+    {
+        // Notes : for each TTL, we send three probe packets.
+        // Initial dest port is 32768 + 666, which will be incremented by one each time we
+        // send a UDP datagram. (WE hope that theses ports are not in use on the dest host)
+        // SEND
+        // RECV
+    }
 }
