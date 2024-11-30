@@ -80,12 +80,19 @@ traceroute_coord (const char *hostname)
 
     // Implement loop for tracerouting
 
-    for (;;)
+    for (int ttl = g_traceroute.info.ttl; ttl <= g_traceroute.info.max_ttl; ++i)
     {
         // Notes : for each TTL, we send three probe packets.
         // Initial dest port is 32768 + 666, which will be incremented by one each time we
         // send a UDP datagram. (WE hope that theses ports are not in use on the dest host)
         // SEND
         // RECV
+
+        // At each loop we use setsockopt to increase ttl size
+
+        for (int probe = g_traceroute.info.probe; probe < g_traceroute.info.nprobes; ++probe)
+        {
+
+        }
     }
 }

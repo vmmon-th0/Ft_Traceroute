@@ -12,7 +12,10 @@ sock_send_init ()
 
     g_traceroute.sock_info.addr_4.sin_family = AF_INET;
     g_traceroute.sock_info.addr_4.sin_addr.s_addr = INADDR_ANY;
-    g_traceroute.sock_info.addr_4.sin_port = htons(0);
+    // We hope that these ports are not in use on the
+    // destination host when the datagrams finally reach the destination, but there is no
+    // guarantee.
+    g_traceroute.sock_info.addr_4.sin_port = htons(32768 + 666);
 }
 
 void
