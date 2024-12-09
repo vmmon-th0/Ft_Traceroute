@@ -5,12 +5,15 @@
 #include <errno.h>
 #include <getopt.h>
 #include <netdb.h>
+#include <netinet/ip.h>
+#include <netinet/udp.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
-#include <netinet/udp.h>
-#include <netinet/ip.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 
 #ifdef DEBUG
@@ -24,7 +27,8 @@
 #define TIMEOUT_SEC 1
 
 #define PACKET_SIZE 64
-#define UDP_PAYLOAD_SIZE PACKET_SIZE - sizeof (struct iphdr) - sizeof (struct udphdr)
+#define UDP_PAYLOAD_SIZE                                                       \
+    PACKET_SIZE - sizeof (struct iphdr) - sizeof (struct udphdr)
 
 struct s_options
 {
@@ -54,9 +58,10 @@ struct s_info
     _Bool ready_send;
 };
 
-struct s_udp_pkt {
-	struct udphdr   udphdr;
-	char data[UDP_PAYLOAD_SIZE];
+struct s_udp_pkt
+{
+    struct udphdr udphdr;
+    char data[UDP_PAYLOAD_SIZE];
 };
 
 struct s_traceroute
@@ -65,6 +70,13 @@ struct s_traceroute
     struct s_options options;
     struct s_sock_info sock_info;
 };
+
+void release_resources ();
+void traceroute_coord (const char *hostname);
+void traceroute_init_g_info ();
+void fill_udp_packet (struct s_udp_pkt *udp_pkt);
+void sock_send_init ();
+void sock_recv_init ();
 
 extern struct s_traceroute g_traceroute;
 

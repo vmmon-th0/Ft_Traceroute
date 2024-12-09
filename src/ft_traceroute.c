@@ -4,11 +4,10 @@ struct s_traceroute g_traceroute;
 
 static char short_options[] = "hIT";
 
-static struct option long_options[]
-    = { { "help", no_argument, NULL, 'h' },
-        { "icmp", no_argument, NULL, 'I' },
-        { "tcp", no_argument, NULL, 'T' },
-        { NULL, 0, NULL, 0 } };
+static struct option long_options[] = { { "help", no_argument, NULL, 'h' },
+                                        { "icmp", no_argument, NULL, 'I' },
+                                        { "tcp", no_argument, NULL, 'T' },
+                                        { NULL, 0, NULL, 0 } };
 
 static void
 show_usage (void)
@@ -31,7 +30,7 @@ show_usage_and_exit (int exit_code)
 static int
 is_running_as_root ()
 {
-    return geteuid () == 0;
+    return getuid () == 0;
 }
 
 static void
@@ -64,7 +63,7 @@ main (int argc, char *argv[])
 
     signal (SIGINT, handle_sig);
     signal (SIGALRM, handle_sig);
-    traceroute_init_g_info();
+    traceroute_init_g_info ();
 
     while ((opt = getopt_long (argc, argv, short_options, long_options,
                                &long_index))
