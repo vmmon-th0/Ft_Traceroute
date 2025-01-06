@@ -15,17 +15,16 @@
  *    set of octets, including the checksum field. If the result is all 1 bits
  *    (i.e., -0 in 1's complement arithmetic), the check succeeds.
  *
- * @param s_udp_pkt Pointer to the `s_udp_pkt` structure whose data is to be
- * checksummed.
- * @param len Size of the `s_udp_pkt` structure.
+ * @param s_troute_pkt Pointer to the `s_troute_pkt` structure whose data is to
+ * be checksummed.
+ * @param len Size of the `s_troute_pkt` structure.
  *
  * @return The computed checksum as a 16-bit integer.
  */
 
 static uint16_t
-compute_checksum_v4 (struct s_udp_pkt *udp_pkt, size_t len)
+compute_checksum_v4 (const uint16_t *data, size_t len)
 {
-    const uint16_t *data = (const void *)udp_pkt;
     uint32_t sum = 0;
 
     /* Add 16-bit words */
@@ -49,20 +48,39 @@ compute_checksum_v4 (struct s_udp_pkt *udp_pkt, size_t len)
     return ~sum;
 }
 
-void
-fill_udp_packet (struct s_udp_pkt *udp_pkt)
+_Bool
+verify_checksum (struct icmphdr *icmphdr, size_t pkt_size)
 {
-    static int sequence = 0;
+    uint16_t received_checksum = icmphdr->checksum;
+    icmphdr->checksum = 0;
+    uint16_t computed_checksum
+        = compute_checksum_v4 ((const void *)icmphdr, pkt_size);
+    return (computed_checksum == received_checksum);
+}
 
-    memset (udp_pkt, 0, sizeof (struct s_udp_pkt));
-    /* Filling data payload with random data */
-    memset (udp_pkt->data, 0xA5, sizeof (udp_pkt->data));
-    /* Remember to set the checksum to 0 since it will be calculated on the
-     * entire ICMP packet. */
-    udp_pkt->udphdr.len = htons (sizeof (struct udphdr)); // Put data length
-    udp_pkt->udphdr.source = htons (g_traceroute.info.srcp);
-    udp_pkt->udphdr.dest = htons (g_traceroute.info.dstp++);
-    udp_pkt->udphdr.check = 0;
-    udp_pkt->udphdr.check
-        = compute_checksum_v4 (udp_pkt, sizeof (struct s_udp_pkt));
+void
+fill_troute_packet (struct s_troute_pkt *troute_pkt, int ttl)
+{
+    memset (troute_pkt, 0, sizeof (struct s_troute_pkt));
+
+    // ip header
+    troute_pkt->iphdr.frag_off = htons (IP_DF);
+    troute_pkt->iphdr.ttl = ttl;
+    troute_pkt->iphdr.protocol = IPPROTO_UDP;
+    troute_pkt->iphdr.saddr = INADDR_ANY;
+    troute_pkt->iphdr.daddr = inet_addr (g_traceroute.sock_info.ip_addr);
+    troute_pkt->iphdr.id = htons (getpid () & 0xFFFF);
+    troute_pkt->iphdr.tot_len = htons (sizeof (struct s_troute_pkt));
+    troute_pkt->iphdr.tos = 0;
+    troute_pkt->iphdr.version = 4;
+    troute_pkt->iphdr.ihl = 5;
+    troute_pkt->iphdr.check = 0;
+    troute_pkt->iphdr.check = compute_checksum_v4 (
+        (const void *)&troute_pkt->iphdr, sizeof (struct iphdr));
+
+    // udp header
+    troute_pkt->udphdr.len = htons (sizeof (struct udphdr));
+    troute_pkt->udphdr.source = htons (g_traceroute.info.srcp);
+    troute_pkt->udphdr.dest = htons (g_traceroute.info.dstp + ttl);
+    troute_pkt->udphdr.check = 0;
 }

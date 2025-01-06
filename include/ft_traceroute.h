@@ -6,15 +6,17 @@
 #include <getopt.h>
 #include <netdb.h>
 #include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
 
 #ifdef DEBUG
 #define TRACEROUTE_DEBUG(fmt, ...)                                             \
@@ -24,17 +26,7 @@
 #define TRACEROUTE_DEBUG(fmt, ...)
 #endif
 
-#define TIMEOUT_SEC 1
-
-#define PACKET_SIZE 64
-#define UDP_PAYLOAD_SIZE                                                       \
-    PACKET_SIZE - sizeof (struct iphdr) - sizeof (struct udphdr)
-
-struct s_options
-{
-    _Bool tcp;
-    _Bool icmp;
-};
+#define BUFFER_SIZE 1500
 
 struct s_sock_info
 {
@@ -47,36 +39,45 @@ struct s_sock_info
     char ip_addr[INET_ADDRSTRLEN];
 };
 
+struct s_rtt
+{
+    struct timespec start;
+    struct timespec end;
+};
+
 struct s_info
 {
     pid_t pid;
-    uint16_t nsent;
     uint16_t srcp, dstp;
-    uint16_t ttl, max_ttl;
+    uint16_t max_ttl;
     uint16_t probe, nprobes;
-    _Bool exit_code;
-    _Bool ready_send;
+    _Bool got_alarm;
+    struct sockaddr_in last_sa;
+    struct s_rtt rtt_metrics;
 };
 
-struct s_udp_pkt
+struct s_troute_pkt
 {
+    struct iphdr iphdr;
     struct udphdr udphdr;
-    char data[UDP_PAYLOAD_SIZE];
 };
 
 struct s_traceroute
 {
     struct s_info info;
-    struct s_options options;
     struct s_sock_info sock_info;
 };
 
-void release_resources ();
 void traceroute_coord (const char *hostname);
 void traceroute_init_g_info ();
-void fill_udp_packet (struct s_udp_pkt *udp_pkt);
+void fill_troute_packet (struct s_troute_pkt *troute_pkt, int ttl);
 void sock_send_init ();
 void sock_recv_init ();
+void troute_exit (int status);
+void fqdn_resolver (const char *ip, char *fqdn, size_t fqdn_size);
+void resolve_hostname (const char *hostname);
+double compute_elapsed_ms (struct timespec start, struct timespec end);
+_Bool verify_checksum (struct icmphdr *icmphdr, size_t pkt_size);
 
 extern struct s_traceroute g_traceroute;
 

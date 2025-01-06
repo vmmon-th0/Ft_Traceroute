@@ -47,7 +47,7 @@ debug: CFLAGS += -g -DDEBUG
 debug: clean all
 
 leaks: debug
-	valgrind $(VALGRINDFLAGS) ./$(TARGET)
+	sudo valgrind $(VALGRINDFLAGS) ./$(TARGET) google.com
 
 run: $(TARGET)
 	./$(TARGET)

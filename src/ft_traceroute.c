@@ -2,12 +2,10 @@
 
 struct s_traceroute g_traceroute;
 
-static char short_options[] = "hIT";
+static char short_options[] = "h";
 
-static struct option long_options[] = { { "help", no_argument, NULL, 'h' },
-                                        { "icmp", no_argument, NULL, 'I' },
-                                        { "tcp", no_argument, NULL, 'T' },
-                                        { NULL, 0, NULL, 0 } };
+static struct option long_options[]
+    = { { "help", no_argument, NULL, 'h' }, { NULL, 0, NULL, 0 } };
 
 static void
 show_usage (void)
@@ -15,16 +13,14 @@ show_usage (void)
     printf ("\
 Usage: traceroute [OPTION]... [ADDRESS]...\n\
 Options :\n\
-  -h, --help        Display this help and exit\n\
-  -I, --icmp        Use ICMP ECHO for probes\n\
-  -T, --tcp         Use TCP SYN for probes\n");
+  -h, --help        Display this help and exit\n");
 }
 
 static void
 show_usage_and_exit (int exit_code)
 {
     show_usage ();
-    exit (exit_code);
+    troute_exit (exit_code);
 }
 
 static int
@@ -38,12 +34,12 @@ handle_sig (int sig)
 {
     if (sig == SIGALRM)
     {
-        g_traceroute.info.ready_send = true;
+        TRACEROUTE_DEBUG ("SIGALRM received\n");
+        g_traceroute.info.got_alarm = true;
     }
     else if (sig == SIGINT)
     {
-        release_resources ();
-        exit (EXIT_SUCCESS);
+        troute_exit (EXIT_SUCCESS);
     }
 }
 
@@ -58,11 +54,26 @@ main (int argc, char *argv[])
     if (!is_running_as_root ())
     {
         fprintf (stderr, "Program needs to be run as root\n");
-        exit (EXIT_FAILURE);
+        troute_exit (EXIT_FAILURE);
     }
 
-    signal (SIGINT, handle_sig);
-    signal (SIGALRM, handle_sig);
+    struct sigaction sa;
+    sa.sa_handler = handle_sig;
+    sigemptyset (&sa.sa_mask);
+    sa.sa_flags = 0;
+
+    if (sigaction (SIGALRM, &sa, NULL) == -1)
+    {
+        perror ("sigaction");
+        return -1;
+    }
+
+    if (sigaction (SIGINT, &sa, NULL) == -1)
+    {
+        perror ("sigaction SIGINT");
+        return -1;
+    }
+
     traceroute_init_g_info ();
 
     while ((opt = getopt_long (argc, argv, short_options, long_options,
@@ -74,16 +85,6 @@ main (int argc, char *argv[])
             case 'h':
             {
                 show_usage_and_exit (EXIT_SUCCESS);
-            }
-            case 'T':
-            {
-                g_traceroute.options.tcp = true;
-                break;
-            }
-            case 'I':
-            {
-                g_traceroute.options.icmp = true;
-                break;
             }
             default:
             {
@@ -100,5 +101,5 @@ main (int argc, char *argv[])
 
     argv += optind;
     traceroute_coord (*argv);
-    return g_traceroute.info.exit_code;
+    return (troute_exit (EXIT_SUCCESS), EXIT_SUCCESS); // hmmmm
 }

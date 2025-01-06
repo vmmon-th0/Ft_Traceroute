@@ -1,75 +1,69 @@
 #include "ft_traceroute.h"
 
-/**
- * @brief This function resolves a hostname that will be the traceroute
- * destination target, we are dealing with IPV4, The getaddrinfo() function
- * allocates and initializes a linked list of addrinfo structures. There are
- * several reasons why the linked list may have more than one addrinfo structure
- * :
- * - Multihoming (A network host can be reached via multiple IP addresses)
- * - Multiple protocols (AF_INET (IPv4) and AF_INET6 (IPv6))
- * - Various socket types (The same service can be reached via different socket
- * types, such as SOCK_STREAM (TCP) and SOCK_DGRAM (UDP))
- * @param hostname destination hostname
- */
+char recv_pkt[BUFFER_SIZE];
 
-static void
-resolve_hostname (const char *hostname)
+static int
+recv_packet (struct sockaddr_in *r_addr)
 {
-    struct addrinfo hints, *res, *p;
-    int status;
+    int recv_bytes;
 
-    memset (&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_RAW;
-    hints.ai_flags = AI_CANONNAME;
+    struct iphdr *ip_hdr;
+    struct icmphdr *icmp_hdr;
 
-    if ((status = getaddrinfo (hostname, NULL, &hints, &res)) != 0)
+    socklen_t addr_len;
+    addr_len = sizeof (struct sockaddr_in);
+
+    g_traceroute.info.got_alarm = false;
+    alarm (3);
+
+    for (;;)
     {
-        fprintf (stderr, "getaddrinfo: %s\n", gai_strerror (status));
-        exit (EXIT_FAILURE);
-    }
-
-    for (p = res; p != NULL; p = p->ai_next)
-    {
-        if (p->ai_family == AF_INET)
+        if (g_traceroute.info.got_alarm == true)
         {
-            struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
-            void *addr = &(ipv4->sin_addr);
+            TRACEROUTE_DEBUG ("time out reached, got alarm\n");
+            return -3;
+        }
 
-            if (inet_ntop (p->ai_family, addr, g_traceroute.sock_info.ip_addr,
-                           sizeof (g_traceroute.sock_info.ip_addr))
-                == NULL)
+        recv_bytes = recvfrom (g_traceroute.sock_info.recv_fd, recv_pkt,
+                               sizeof (recv_pkt), 0, (struct sockaddr *)r_addr,
+                               &addr_len);
+        TRACEROUTE_DEBUG ("recv_bytes: %d\n", recv_bytes);
+
+        if (recv_bytes < 0)
+        {
+            if (errno == EINTR)
             {
-                perror ("inet_ntop IPv4");
                 continue;
             }
-            memcpy (&g_traceroute.sock_info.ai, p, sizeof (struct addrinfo));
-            TRACEROUTE_DEBUG ("IPv4 addr for %s: %s\n", hostname,
-            g_traceroute.sock_info.ip_addr);
+            perror ("recvfrom");
+            troute_exit (EXIT_FAILURE);
+        }
+
+        clock_gettime (CLOCK_MONOTONIC, &g_traceroute.info.rtt_metrics.end);
+        ip_hdr = (struct iphdr *)recv_pkt;
+        icmp_hdr = (struct icmphdr *)(recv_pkt + ip_hdr->ihl * 4);
+
+        size_t pkt_size = recv_bytes - sizeof (struct iphdr);
+
+        if (verify_checksum (icmp_hdr, pkt_size) == false)
+        {
+            fprintf (stderr, "Received corrupted ICMPv4 packet\n");
+            troute_exit (EXIT_FAILURE);
+        }
+
+        if (icmp_hdr->type == ICMP_TIME_EXCEEDED
+            || icmp_hdr->type == ICMP_DEST_UNREACH)
+        {
+            return icmp_hdr->type;
+        }
+        else
+        {
+            TRACEROUTE_DEBUG ("Another ICMP type received\n");
             break;
         }
     }
-
-    if (res->ai_canonname)
-    {
-        TRACEROUTE_DEBUG ("Canonname for IPv4 addr %s: %s\n",
-        g_traceroute.sock_info.ip_addr, res->ai_canonname);
-        memcpy (g_traceroute.sock_info.ai_canonname, res->ai_canonname,
-                sizeof (g_traceroute.sock_info.ai_canonname));
-        g_traceroute.sock_info.ai.ai_canonname
-            = g_traceroute.sock_info.ai_canonname;
-    }
-
-    freeaddrinfo (res);
-
-    if (p == NULL)
-    {
-        fprintf (stderr, "No valid IPv4 address found for %s\n", hostname);
-        exit (EXIT_FAILURE);
-    }
-
-    g_traceroute.sock_info.hostname = hostname;
+    alarm (0);
+    return 0;
 }
 
 void
@@ -80,50 +74,88 @@ traceroute_coord (const char *hostname)
     sock_send_init ();
     sock_recv_init ();
 
-    // Implement loop for tracerouting
-
-    g_traceroute.info.ttl = 1;
     g_traceroute.info.max_ttl = 30;
 
-    for (int ttl = g_traceroute.info.ttl; ttl <= g_traceroute.info.max_ttl;
+    printf ("traceroute to %s (%s): %d hops max, %lu data bytes\n",
+            strlen (g_traceroute.sock_info.ai_canonname)
+                ? g_traceroute.sock_info.ai_canonname
+                : g_traceroute.sock_info.hostname,
+            g_traceroute.sock_info.ip_addr, g_traceroute.info.max_ttl,
+            sizeof (struct s_troute_pkt));
+
+    int dest_reach = 0;
+
+    for (int ttl = 1; ttl <= g_traceroute.info.max_ttl && dest_reach == 0;
          ++ttl)
     {
-        // Notes : for each TTL, we send three probe packets.
-        // Initial dest port is 32768 + 666, which will be incremented by one
-        // each time we send a UDP datagram. (WE hope that theses ports are not
-        // in use on the dest host) SEND RECV
-
-        // At each loop we use setsockopt to increase ttl size
-
-        if (setsockopt (g_traceroute.sock_info.send_fd, IPPROTO_IP, IP_TTL,
-                        &ttl, sizeof (ttl)) < 0)
+        printf ("%d ", ttl);
+        for (int probe = 0; probe < g_traceroute.info.nprobes; ++probe)
         {
-            perror ("setsockopt");
-            release_resources ();
-            exit (EXIT_FAILURE);
-        }
+            struct s_troute_pkt troute_pkt;
+            fill_troute_packet (&troute_pkt, ttl);
 
-        // fullfill packet here
-
-        struct s_udp_pkt udp_pkt;
-
-        fill_udp_packet (&udp_pkt);
-
-        for (int probe = g_traceroute.info.probe;
-             probe < g_traceroute.info.nprobes; ++probe)
-        {
-            if (sendto (g_traceroute.sock_info.send_fd, &udp_pkt,
-                        sizeof (struct s_udp_pkt), 0,
-                        (const struct sockaddr *)g_traceroute.sock_info.ip_addr, INET_ADDRSTRLEN)
+            if (sendto (g_traceroute.sock_info.send_fd, &troute_pkt,
+                        sizeof (struct s_troute_pkt), 0,
+                        (const struct sockaddr *)&g_traceroute.sock_info.addr_4,
+                        sizeof (g_traceroute.sock_info.addr_4))
                 == -1)
             {
                 perror ("sendto");
-                release_resources ();
-                exit (EXIT_FAILURE);
+                troute_exit (EXIT_FAILURE);
+            }
+
+            clock_gettime (CLOCK_MONOTONIC,
+                           &g_traceroute.info.rtt_metrics.start);
+
+            TRACEROUTE_DEBUG (
+                "probes no. %d has been successfully send with TTL: %d.\n",
+                probe, ttl);
+
+            int ret;
+            struct sockaddr_in r_addr;
+
+            if ((ret = recv_packet (&r_addr)) == -3)
+            {
+                printf ("* ");
+                TRACEROUTE_DEBUG ("timeout reached");
+            }
+            else
+            {
+                if (probe == 0
+                    || g_traceroute.info.last_sa.sin_addr.s_addr
+                           != r_addr.sin_addr.s_addr)
+                {
+                    struct in_addr src_addr;
+                    char src_ip[INET_ADDRSTRLEN];
+                    char fqdn[NI_MAXHOST];
+
+                    src_addr.s_addr = r_addr.sin_addr.s_addr;
+                    inet_ntop (AF_INET, &src_addr, src_ip, INET_ADDRSTRLEN);
+                    fqdn_resolver (src_ip, fqdn, sizeof (fqdn));
+
+                    printf ("%s (%s) ", fqdn, src_ip);
+                }
+
+                printf ("%.3f ms ",
+                        compute_elapsed_ms (g_traceroute.info.rtt_metrics.start,
+                                            g_traceroute.info.rtt_metrics.end));
+
+                memcpy (&g_traceroute.info.last_sa, &r_addr,
+                        sizeof (struct sockaddr_in));
+                TRACEROUTE_DEBUG ("s_addr:\n");
+                TRACEROUTE_DEBUG ("lastsa: %d, r_addr: %d\n",
+                                  g_traceroute.info.last_sa.sin_addr.s_addr,
+                                  r_addr.sin_addr.s_addr);
+
+                if (ret == ICMP_DEST_UNREACH)
+                {
+                    TRACEROUTE_DEBUG ("destination reached");
+                    dest_reach = ICMP_DEST_UNREACH;
+                }
             }
         }
-
-        TRACEROUTE_DEBUG("Traceroute has been successfully terminated.");
-        release_resources ();
+        printf ("\n");
     }
+
+    TRACEROUTE_DEBUG ("Traceroute has been successfully terminated.");
 }
