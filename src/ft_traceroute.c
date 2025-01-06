@@ -2,18 +2,24 @@
 
 struct s_traceroute g_traceroute;
 
-static char short_options[] = "h";
+static char short_config[] = "hq:m:p:";
 
-static struct option long_options[]
-    = { { "help", no_argument, NULL, 'h' }, { NULL, 0, NULL, 0 } };
+static struct option long_config[]
+    = { { "help", no_argument, NULL, 'h' },
+        { "queries", required_argument, NULL, 'q' },
+        { "max-hops", required_argument, NULL, 'm' },
+        { "port", required_argument, NULL, 'p' } };
 
 static void
 show_usage (void)
 {
     printf ("\
 Usage: traceroute [OPTION]... [ADDRESS]...\n\
-Options :\n\
-  -h, --help        Display this help and exit\n");
+config :\n\
+  -h, --help        Display this help and exit\n\
+  -q, --queries     Sets the number of probe packets per hop. The default is 3. (max 10)\n\
+  -m, --max-hops    Specifies the maximum number of hops (max time-to-live value) traceroute will probe. The default is 30. (max 255)\n\
+  -p, --port        For UDP tracing, specifies the destination port base traceroute will use (the destination port number will be incremented by each probe). The default is 32768 + 666. (max 65535)\n");
 }
 
 static void
@@ -76,15 +82,49 @@ main (int argc, char *argv[])
 
     traceroute_init_g_info ();
 
-    while ((opt = getopt_long (argc, argv, short_options, long_options,
+    while ((opt = getopt_long (argc, argv, short_config, long_config,
                                &long_index))
            != -1)
     {
+        char *endptr;
         switch (opt)
         {
             case 'h':
             {
                 show_usage_and_exit (EXIT_SUCCESS);
+            }
+            case 'q':
+            {
+                long nqueries = strtol(optarg, &endptr, 10);
+                if (errno == ERANGE || nqueries < 0 || nqueries > 10 || *endptr != '\0')
+                {
+                    fprintf(stderr, "invalid nqueries value: %s\n", optarg);
+                    show_usage_and_exit(EXIT_FAILURE);
+                }
+                g_traceroute.info.config.nqueries = nqueries;
+                break;
+            }
+            case 'm':
+            {
+                long maxhops = strtol(optarg, &endptr, 10);
+                if (errno == ERANGE || maxhops < 0 || maxhops > UINT8_MAX || *endptr != '\0')
+                {
+                    fprintf(stderr, "invalid maxhops value: %s\n", optarg);
+                    show_usage_and_exit(EXIT_FAILURE);
+                }
+                g_traceroute.info.config.max_ttl = maxhops;
+                break;
+            }
+            case 'p':
+            {
+                long port = strtol(optarg, &endptr, 10);
+                if (errno == ERANGE || port < 0 || port > UINT16_MAX || *endptr != '\0')
+                {
+                    fprintf(stderr, "invalid port value: %s\n", optarg);
+                    show_usage_and_exit(EXIT_FAILURE);
+                }
+                g_traceroute.info.config.port = port;
+                break;
             }
             default:
             {

@@ -80,7 +80,7 @@ fill_troute_packet (struct s_troute_pkt *troute_pkt, int ttl)
 
     // udp header
     troute_pkt->udphdr.len = htons (sizeof (struct udphdr));
-    troute_pkt->udphdr.source = htons (g_traceroute.info.srcp);
-    troute_pkt->udphdr.dest = htons (g_traceroute.info.dstp + ttl);
+    troute_pkt->udphdr.source = htons (g_traceroute.info.config.srcp);
+    troute_pkt->udphdr.dest = htons (g_traceroute.info.config.dstp + ttl);
     troute_pkt->udphdr.check = 0;
 }

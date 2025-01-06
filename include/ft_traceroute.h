@@ -28,6 +28,15 @@
 
 #define BUFFER_SIZE 1500
 
+struct s_config
+{
+    uint8_t  nqueries;
+    uint8_t  max_ttl;
+    uint16_t port;
+    uint16_t srcp;
+    uint16_t dstp;
+};
+
 struct s_sock_info
 {
     int send_fd;
@@ -48,12 +57,10 @@ struct s_rtt
 struct s_info
 {
     pid_t pid;
-    uint16_t srcp, dstp;
-    uint16_t max_ttl;
-    uint16_t probe, nprobes;
     _Bool got_alarm;
     struct sockaddr_in last_sa;
     struct s_rtt rtt_metrics;
+    struct s_config config;
 };
 
 struct s_troute_pkt

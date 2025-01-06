@@ -78,16 +78,16 @@ traceroute_coord (const char *hostname)
             strlen (g_traceroute.sock_info.ai_canonname)
                 ? g_traceroute.sock_info.ai_canonname
                 : g_traceroute.sock_info.hostname,
-            g_traceroute.sock_info.ip_addr, g_traceroute.info.max_ttl,
+            g_traceroute.sock_info.ip_addr, g_traceroute.info.config.max_ttl,
             sizeof (struct s_troute_pkt));
 
     int dest_reach = 0;
 
-    for (int ttl = 1; ttl <= g_traceroute.info.max_ttl && dest_reach == 0;
+    for (int ttl = 1; ttl <= g_traceroute.info.config.max_ttl && dest_reach == 0;
          ++ttl)
     {
         printf ("%d ", ttl);
-        for (int probe = 0; probe < g_traceroute.info.nprobes; ++probe)
+        for (int probe = 0; probe < g_traceroute.info.config.nqueries; ++probe)
         {
             struct s_troute_pkt troute_pkt;
             fill_troute_packet (&troute_pkt, ttl);
