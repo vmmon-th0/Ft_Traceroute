@@ -48,6 +48,7 @@ main (int argc, char *argv[])
 {
     int opt;
     int long_index;
+    struct sigaction sa;
 
     long_index = 0;
 
@@ -57,7 +58,6 @@ main (int argc, char *argv[])
         troute_exit (EXIT_FAILURE);
     }
 
-    struct sigaction sa;
     sa.sa_handler = handle_sig;
     sigemptyset (&sa.sa_mask);
     sa.sa_flags = 0;

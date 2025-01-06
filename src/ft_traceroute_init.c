@@ -44,4 +44,5 @@ traceroute_init_g_info ()
     g_traceroute.info.srcp = (g_traceroute.info.pid & 0xffff) | 0x8000;
     g_traceroute.info.dstp = 32768 + 666;
     g_traceroute.info.nprobes = 3;
+    g_traceroute.info.max_ttl = 30;
 }

@@ -74,8 +74,6 @@ traceroute_coord (const char *hostname)
     sock_send_init ();
     sock_recv_init ();
 
-    g_traceroute.info.max_ttl = 30;
-
     printf ("traceroute to %s (%s): %d hops max, %lu data bytes\n",
             strlen (g_traceroute.sock_info.ai_canonname)
                 ? g_traceroute.sock_info.ai_canonname
