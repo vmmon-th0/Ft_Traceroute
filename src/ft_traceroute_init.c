@@ -22,7 +22,7 @@ sock_send_init ()
     g_traceroute.sock_info.addr_4.sin_family = AF_INET;
     g_traceroute.sock_info.addr_4.sin_addr.s_addr
         = inet_addr (g_traceroute.sock_info.ip_addr);
-    g_traceroute.sock_info.addr_4.sin_port = 0;
+    g_traceroute.sock_info.addr_4.sin_port = g_traceroute.info.config.dstp;
 }
 
 void
