@@ -39,8 +39,8 @@ sock_recv_init ()
 void
 traceroute_init_g_info ()
 {
-    bzero (&g_traceroute, sizeof (struct s_traceroute));
     g_traceroute.info.pid = getpid ();
+    g_traceroute.info.got_alarm = false;
     
     g_traceroute.info.config.max_ttl = 30;
     g_traceroute.info.config.srcp = (g_traceroute.info.pid & 0xffff) | 0x8000;
