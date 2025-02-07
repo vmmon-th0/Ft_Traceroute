@@ -123,7 +123,7 @@ main (int argc, char *argv[])
                     fprintf(stderr, "invalid port value: %s\n", optarg);
                     show_usage_and_exit(EXIT_FAILURE);
                 }
-                g_traceroute.info.config.port = port;
+                g_traceroute.info.config.dstp = port;
                 break;
             }
             default:
